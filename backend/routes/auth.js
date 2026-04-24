@@ -11,7 +11,7 @@ const generateToken = (id) =>
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, role, phone, organization } = req.body;
+    const { name, email, password, phone, organization } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email and password are required' });
     }
@@ -22,9 +22,13 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const user = await User.create({
-      name, email, password: hashedPassword,
-      role: role || 'participant', phone, organization
-    });
+  name,
+  email,
+  password: hashedPassword,
+  role: 'participant',
+  phone,
+  organization
+});
 
     res.status(201).json({
       _id: user._id, name: user.name, email: user.email,
