@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Registrations — StratosEvent</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="brand">Stratos<span>Event</span></div>
+  <div class="nav-links">
+    <a href="/index.html">Events</a>
+    <a href="/pages/my-registrations.html" class="active" id="nav-myregs">My Registrations</a>
+    <a href="/pages/admin.html" id="nav-admin" style="display:none">Admin</a>
+    <a href="/pages/login.html" id="nav-login">Login</a>
+    <a href="/pages/register.html" id="nav-register" class="nav-cta">Register Free</a>
+    <span id="nav-user" style="display:none; padding:0 0.5rem; font-weight:600; color:var(--primary); font-size:0.9rem;"></span>
+    <button id="nav-logout" style="display:none" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div id="toast-container" class="toast-container"></div>
+
+<div class="container section">
+  <!-- Header -->
+  <div style="margin-bottom:2rem;">
+    <h1 style="font-size:1.8rem;font-weight:800;letter-spacing:-0.5px;">My Registrations</h1>
+    <p style="color:var(--text-muted);margin-top:0.4rem;">Track all your event registrations and attendance status</p>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="stats-grid" id="summary-stats" style="margin-bottom:2rem;">
+    <div class="stat-card">
+      <div class="stat-icon purple">🎫</div>
+      <div class="stat-info"><div class="num" id="s-total">0</div><div class="lbl">Total Registered</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">✅</div>
+      <div class="stat-info"><div class="num" id="s-approved">0</div><div class="lbl">Approved</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange">⏳</div>
+      <div class="stat-info"><div class="num" id="s-pending">0</div><div class="lbl">Pending Approval</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon blue">🏁</div>
+      <div class="stat-info"><div class="num" id="s-attended">0</div><div class="lbl">Attended</div></div>
+    </div>
+  </div>
+
+  <!-- Filter Tabs -->
+  <div class="filter-tabs" style="margin-bottom:1.5rem;">
+    <button class="filter-tab active" onclick="filterRegs('all', this)">All</button>
+    <button class="filter-tab" onclick="filterRegs('approved', this)">Approved</button>
+    <button class="filter-tab" onclick="filterRegs('pending', this)">Pending</button>
+    <button class="filter-tab" onclick="filterRegs('rejected', this)">Rejected</button>
+  </div>
+
+  <div id="regs-container">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<footer class="footer">
+  <strong>StratosEvent</strong> &mdash; Enterprise Event Management Platform &copy; 2026
+</footer>
+
+<script src="../js/utils.js"></script>
+<script>
+let allRegs = [];
+
+async function loadMyRegistrations() {
+  if (!requireAuth()) return;
+
+  try {
+    allRegs = await apiFetch('/registrations/my');
+
+    // Update summary stats
+    document.getElementById('s-total').textContent    = allRegs.length;
+    document.getElementById('s-approved').textContent = allRegs.filter(r => r.status === 'approved').length;
+    document.getElementById('s-pending').textContent  = allRegs.filter(r => r.status === 'pending').length;
+    document.getElementById('s-attended').textContent = allRegs.filter(r => r.attended).length;
+
+    renderRegs(allRegs);
+  } catch (err) {
+    showToast(err.message, 'error');
+    document.getElementById('regs-container').innerHTML = `
+      <div class="empty-state">
+        <div class="icon">⚠️</div>
+        <h3>Could not load registrations</h3>
+        <p>${err.message}</p>
+      </div>`;
+  }
+}
+
+function filterRegs(status, btn) {
+  document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const filtered = status === 'all' ? allRegs : allRegs.filter(r => r.status === status);
+  renderRegs(filtered);
+}
+
+function renderRegs(regs) {
+  const container = document.getElementById('regs-container');
+  if (!regs.length) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">📭</div>
+        <h3>No registrations found</h3>
+        <p>Browse events and register for one to see it here.</p>
+        <a href="/index.html" class="btn btn-primary" style="margin-top:1.25rem;">Browse Events</a>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = regs.map(r => {
+    const event = r.event || {};
+    const isUpcoming = event.startDate && new Date(event.startDate) > new Date();
+    return `
+    <div class="reg-card">
+      <div class="reg-card-icon">${catEmoji(event.category)}</div>
+      <div class="reg-card-info">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+          <h4>${event.title || 'Unknown Event'}</h4>
+          ${statusBadge(r.status)}
+          ${r.attended ? '<span class="badge badge-success">✓ Attended</span>' : ''}
+          ${isUpcoming && r.status === 'approved' ? '<span class="badge badge-info">Upcoming</span>' : ''}
+        </div>
+        <p>📅 ${event.startDate ? formatDate(event.startDate) : '—'}
+           &nbsp;|&nbsp; 📍 ${event.venue || '—'}
+           &nbsp;|&nbsp; 🎫 ${r.ticketTier}
+        </p>
+        <p style="margin-top:4px;">Registered on ${formatDate(r.registeredAt)}</p>
+      </div>
+      <div style="flex-shrink:0;text-align:right;">
+        <a href="/pages/event-detail.html?id=${event._id}" class="btn btn-outline btn-sm">View Event</a>
+        ${r.status === 'approved' && !r.attended ? `
+          <div style="margin-top:8px;padding:8px 12px;background:var(--primary-light);border-radius:var(--radius-sm);font-size:0.75rem;color:var(--primary-dark);">
+            <strong>Token:</strong><br/>
+            <code style="font-size:0.7rem;word-break:break-all;">${r.uniqueToken}</code>
+          </div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.addEventListener('DOMContentLoaded', loadMyRegistrations);
+</script>
+</body>
+</html>

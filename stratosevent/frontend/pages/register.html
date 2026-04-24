@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Register — StratosEvent</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+</head>
+<body>
+<div id="toast-container" class="toast-container"></div>
+
+<div class="auth-wrapper">
+  <div class="auth-left">
+    <div>
+      <div style="font-size:2.5rem;margin-bottom:1.5rem;">🚀</div>
+      <h2>Join StratosEvent<br/>Today — It's Free</h2>
+      <p>Register in seconds and start discovering and attending world-class events in your industry.</p>
+      <div class="auth-features">
+        <div class="auth-feature">
+          <div class="auth-feature-icon">✅</div>
+          <span>Instant registration confirmation</span>
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">📱</div>
+          <span>Digital tickets with unique check-in tokens</span>
+        </div>
+        <div class="auth-feature">
+          <div class="auth-feature-icon">🗂️</div>
+          <span>Track all your registrations in one place</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-right">
+    <div class="auth-form-box">
+      <h1>Create account</h1>
+      <p class="subtitle">Fill in the details below to get started</p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Full name *</label>
+          <input type="text" id="name" class="form-control" placeholder="Prasanna Kumar"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email address *</label>
+          <input type="email" id="email" class="form-control" placeholder="you@example.com"/>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Phone number</label>
+          <input type="tel" id="phone" class="form-control" placeholder="+91 98765 43210"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Organisation</label>
+          <input type="text" id="organization" class="form-control" placeholder="Your company"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Password *</label>
+        <input type="password" id="password" class="form-control" placeholder="Min. 6 characters"/>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Account type</label>
+        <select id="role" class="form-control">
+          <option value="participant">Participant (Attend Events)</option>
+          <option value="admin">Admin (Manage Events)</option>
+        </select>
+      </div>
+
+      <button class="btn btn-primary btn-block btn-lg" id="reg-btn" onclick="handleRegister()">
+        Create Account
+      </button>
+
+      <div class="divider">or</div>
+
+      <p style="text-align:center; font-size:0.9rem; color:var(--text-muted)">
+        Already have an account?
+        <a href="login.html" style="color:var(--primary); font-weight:600;">Sign in</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<script src="../js/utils.js"></script>
+<script>
+if (getToken()) window.location.href = '/index.html';
+
+async function handleRegister() {
+  const name         = document.getElementById('name').value.trim();
+  const email        = document.getElementById('email').value.trim();
+  const phone        = document.getElementById('phone').value.trim();
+  const organization = document.getElementById('organization').value.trim();
+  const password     = document.getElementById('password').value;
+  const role         = document.getElementById('role').value;
+  const btn          = document.getElementById('reg-btn');
+
+  if (!name || !email || !password) return showToast('Name, email and password are required', 'error');
+  if (password.length < 6) return showToast('Password must be at least 6 characters', 'error');
+
+  btn.disabled = true;
+  btn.textContent = 'Creating account...';
+
+  try {
+    const data = await apiFetch('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ name, email, password, role, phone, organization })
+    });
+    setAuth(data);
+    showToast('Account created successfully!', 'success');
+    setTimeout(() => {
+      window.location.href = data.role === 'admin' ? '/pages/admin.html' : '/index.html';
+    }, 700);
+  } catch (err) {
+    showToast(err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Create Account';
+  }
+}
+</script>
+</body>
+</html>

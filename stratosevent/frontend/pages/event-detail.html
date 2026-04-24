@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Event Detail — StratosEvent</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="brand">Stratos<span>Event</span></div>
+  <div class="nav-links">
+    <a href="/index.html">← Back to Events</a>
+    <a href="/pages/my-registrations.html" id="nav-myregs" style="display:none">My Registrations</a>
+    <a href="/pages/admin.html" id="nav-admin" style="display:none">Admin</a>
+    <a href="/pages/login.html" id="nav-login">Login</a>
+    <a href="/pages/register.html" id="nav-register" class="nav-cta">Register Free</a>
+    <span id="nav-user" style="display:none; padding:0 0.5rem; font-weight:600; color:var(--primary); font-size:0.9rem;"></span>
+    <button id="nav-logout" style="display:none" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div id="toast-container" class="toast-container"></div>
+
+<div id="page-content">
+  <div class="loader"><div class="spinner"></div></div>
+</div>
+
+<!-- Registration Modal -->
+<div class="modal-overlay" id="reg-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Complete Registration</h3>
+      <button class="modal-close" onclick="closeModal('reg-modal')">✕</button>
+    </div>
+    <div id="modal-body">
+      <p style="color:var(--text-muted); margin-bottom:1.25rem;">You are registering for: <strong id="modal-event-title"></strong></p>
+      <div class="form-group">
+        <label class="form-label">Selected Ticket Tier</label>
+        <input type="text" id="modal-tier-display" class="form-control" readonly style="background:var(--bg);"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Additional Notes (optional)</label>
+        <textarea id="modal-notes" class="form-control" placeholder="Any dietary requirements, accessibility needs, etc."></textarea>
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" id="confirm-reg-btn" onclick="confirmRegistration()">
+        Confirm Registration
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/utils.js"></script>
+<script>
+let currentEvent = null;
+let selectedTier = null;
+
+async function loadEvent() {
+  const id = new URLSearchParams(window.location.search).get('id');
+  if (!id) { window.location.href = '/index.html'; return; }
+
+  try {
+    currentEvent = await apiFetch(`/events/${id}`);
+    renderEvent(currentEvent);
+  } catch (err) {
+    document.getElementById('page-content').innerHTML = `
+      <div class="container section"><div class="empty-state">
+        <div class="icon">⚠️</div>
+        <h3>Event not found</h3>
+        <p><a href="/index.html" style="color:var(--primary)">Back to events</a></p>
+      </div></div>`;
+  }
+}
+
+function renderEvent(e) {
+  const totalSeats = e.ticketTiers.reduce((s, t) => s + t.availableSeats, 0);
+  const daysLeft = Math.ceil((new Date(e.startDate) - new Date()) / 86400000);
+
+  document.title = `${e.title} — StratosEvent`;
+
+  document.getElementById('page-content').innerHTML = `
+    <div class="event-detail-hero ${catClass(e.category)}">
+      <div class="overlay"></div>
+      <div class="container" style="position:relative;z-index:1;width:100%;">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:0.75rem;">
+          <span class="badge badge-purple">${e.category}</span>
+          ${e.isInviteOnly ? '<span class="badge badge-danger">Invite Only — Approval Required</span>' : '<span class="badge badge-success">Open Registration</span>'}
+        </div>
+        <h1 style="font-size:2rem;font-weight:800;color:#fff;letter-spacing:-0.5px;">${e.title}</h1>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="detail-grid">
+        <!-- LEFT: Event Info -->
+        <div>
+          <div class="card" style="margin-bottom:1.5rem;">
+            <div class="card-header"><h3>About This Event</h3></div>
+            <div class="card-body">
+              <p style="line-height:1.8;color:var(--text-muted);">${e.description}</p>
+              ${e.tags && e.tags.length ? `<div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">${e.tags.map(t=>`<span class="badge badge-purple">${t}</span>`).join('')}</div>` : ''}
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3>Event Details</h3></div>
+            <div class="card-body">
+              <table style="width:100%;">
+                <tr><td style="padding:10px 0;color:var(--text-muted);font-size:0.88rem;width:40%;">📅 Start Date</td><td style="font-weight:600;">${formatDateTime(e.startDate)}</td></tr>
+                <tr><td style="padding:10px 0;color:var(--text-muted);font-size:0.88rem;">🏁 End Date</td><td style="font-weight:600;">${formatDateTime(e.endDate)}</td></tr>
+                <tr><td style="padding:10px 0;color:var(--text-muted);font-size:0.88rem;">📍 Venue</td><td style="font-weight:600;">${e.venue}</td></tr>
+                ${e.address ? `<tr><td style="padding:10px 0;color:var(--text-muted);font-size:0.88rem;">🗺️ Address</td><td style="font-weight:600;">${e.address}</td></tr>` : ''}
+                <tr><td style="padding:10px 0;color:var(--text-muted);font-size:0.88rem;">🎫 Total Seats</td><td style="font-weight:600;">${totalSeats} available</td></tr>
+                <tr><td style="padding:10px 0;color:var(--text-muted);font-size:0.88rem;">⏳ Days Left</td><td style="font-weight:600;">${daysLeft > 0 ? daysLeft + ' days' : 'Event started'}</td></tr>
+                <tr><td style="padding:10px 0;color:var(--text-muted);font-size:0.88rem;">👤 Organised by</td><td style="font-weight:600;">${e.createdBy?.name || 'StratosEvent'}</td></tr>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Registration -->
+        <div>
+          <div class="card" style="position:sticky;top:80px;">
+            <div class="card-header"><h3>Select Your Ticket</h3></div>
+            <div class="card-body">
+              ${e.ticketTiers.map(t => `
+                <div class="ticket-card" id="tier-${t.name}" onclick="selectTier('${t.name}', ${t.price}, ${t.availableSeats})">
+                  <h4>${t.name}</h4>
+                  <div class="price">${formatCurrency(t.price)}</div>
+                  <div class="seats">${t.availableSeats} seats remaining</div>
+                  ${t.perks ? `<div class="perks">✓ ${t.perks}</div>` : ''}
+                </div>
+              `).join('')}
+
+              ${e.isInviteOnly ? `
+                <div style="background:#fef3c7;border-radius:var(--radius-sm);padding:0.75rem;font-size:0.83rem;color:#92400e;margin-bottom:1rem;">
+                  ⏳ This is an invite-only event. Your registration will require admin approval.
+                </div>` : ''}
+
+              <button class="btn btn-primary btn-block btn-lg" id="register-btn" onclick="initiateRegistration()" disabled>
+                Select a ticket tier
+              </button>
+
+              <p style="text-align:center;font-size:0.8rem;color:var(--text-muted);margin-top:0.75rem;">
+                🔒 Secure registration — No payment collected online
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function selectTier(name, price, seats) {
+  if (seats < 1) { showToast('No seats available in this tier', 'error'); return; }
+  document.querySelectorAll('.ticket-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById(`tier-${name}`).classList.add('selected');
+  selectedTier = name;
+  const btn = document.getElementById('register-btn');
+  btn.disabled = false;
+  btn.textContent = `Register — ${formatCurrency(price)}`;
+}
+
+function initiateRegistration() {
+  if (!requireAuth('/pages/login.html')) return;
+  if (!selectedTier) { showToast('Please select a ticket tier', 'error'); return; }
+  document.getElementById('modal-event-title').textContent = currentEvent.title;
+  document.getElementById('modal-tier-display').value = selectedTier;
+  openModal('reg-modal');
+}
+
+async function confirmRegistration() {
+  const btn = document.getElementById('confirm-reg-btn');
+  btn.disabled = true;
+  btn.textContent = 'Registering...';
+
+  try {
+    await apiFetch('/registrations', {
+      method: 'POST',
+      body: JSON.stringify({ eventId: currentEvent._id, ticketTier: selectedTier })
+    });
+    closeModal('reg-modal');
+    showToast(
+      currentEvent.isInviteOnly
+        ? 'Registration submitted! Awaiting admin approval.'
+        : 'Successfully registered! Check My Registrations.',
+      'success'
+    );
+    setTimeout(() => window.location.href = '/pages/my-registrations.html', 1500);
+  } catch (err) {
+    showToast(err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Confirm Registration';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', loadEvent);
+</script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StratosEvent — Professional Event Management</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="brand">Stratos<span>Event</span></div>
+  <div class="nav-links">
+    <a href="index.html" class="active">Events</a>
+    <a href="pages/my-registrations.html" id="nav-myregs" style="display:none">My Registrations</a>
+    <a href="pages/admin.html" id="nav-admin" style="display:none">Admin</a>
+    <a href="pages/login.html" id="nav-login">Login</a>
+    <a href="pages/register.html" id="nav-register" class="nav-cta">Register Free</a>
+    <span id="nav-user" style="display:none; padding:0 0.5rem; font-weight:600; color:var(--primary); font-size:0.9rem;"></span>
+    <button id="nav-logout" style="display:none" onclick="logout()">Logout</button>
+  </div>
+</nav>
+
+<div id="toast-container" class="toast-container"></div>
+
+<!-- HERO -->
+<section class="hero-section">
+  <h1>Your Command Center<br/>for Every Event</h1>
+  <p>Create, manage, and track events with enterprise-grade tools. From registrations to real-time analytics — all in one place.</p>
+
+  <div class="search-bar">
+    <input type="text" id="search-input" placeholder="Search events by title..."/>
+    <select id="category-filter">
+      <option value="">All Categories</option>
+      <option value="Conference">Conference</option>
+      <option value="Workshop">Workshop</option>
+      <option value="Webinar">Webinar</option>
+      <option value="Other">Other</option>
+    </select>
+    <button onclick="filterEvents()">Search</button>
+  </div>
+
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="num" id="stat-events">0</div><div class="lbl">Events</div></div>
+    <div class="hero-stat"><div class="num" id="stat-regs">0+</div><div class="lbl">Registrations</div></div>
+    <div class="hero-stat"><div class="num">100%</div><div class="lbl">Automated</div></div>
+  </div>
+</section>
+
+<!-- EVENTS SECTION -->
+<div class="container section">
+  <div class="section-title">
+    <span>Upcoming Events</span>
+    <div class="filter-tabs" id="cat-tabs">
+      <button class="filter-tab active" onclick="setCategory('', this)">All</button>
+      <button class="filter-tab" onclick="setCategory('Conference', this)">Conference</button>
+      <button class="filter-tab" onclick="setCategory('Workshop', this)">Workshop</button>
+      <button class="filter-tab" onclick="setCategory('Webinar', this)">Webinar</button>
+    </div>
+  </div>
+
+  <div id="events-container" class="event-grid">
+    <div class="loader"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<footer class="footer">
+  <strong>StratosEvent</strong> &mdash; Enterprise Event Management Platform &copy; 2026
+</footer>
+
+<script src="js/utils.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard — StratosEvent</title>
+  <link rel="stylesheet" href="../css/style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .tier-row { display:grid; grid-template-columns:1fr 1fr 1fr 1fr auto; gap:0.75rem; align-items:center; margin-bottom:0.75rem; }
+    .tier-row input { padding:0.5rem 0.75rem; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:0.88rem; font-family:var(--font); }
+    .tier-row input:focus { border-color:var(--primary); outline:none; }
+  </style>
+</head>
+<body>
+
+<div id="toast-container" class="toast-container"></div>
+
+<div class="admin-layout">
+  <!-- SIDEBAR -->
+  <aside class="admin-sidebar">
+    <div class="sidebar-brand">Stratos<span>Event</span><br/><small style="font-size:0.65rem;opacity:0.5;font-weight:400;">Admin Panel</small></div>
+    <nav class="sidebar-nav">
+      <a href="#" class="active" onclick="switchTab('dashboard', this)"><span class="icon">📊</span> Dashboard</a>
+      <a href="#" onclick="switchTab('events', this)"><span class="icon">📅</span> Events</a>
+      <a href="#" onclick="switchTab('registrations', this)"><span class="icon">📋</span> Registrations</a>
+      <a href="#" onclick="switchTab('create-event', this)"><span class="icon">➕</span> Create Event</a>
+      <a href="#" onclick="switchTab('checkin', this)"><span class="icon">✅</span> Check-in</a>
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:1rem 0;"/>
+      <a href="/index.html"><span class="icon">🏠</span> View Site</a>
+      <a href="#" onclick="logout()"><span class="icon">🚪</span> Logout</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="admin-main">
+    <div class="admin-topbar">
+      <h1 id="page-title">Dashboard</h1>
+      <div style="font-size:0.88rem;color:var(--text-muted)" id="admin-name"></div>
+    </div>
+
+    <!-- ── DASHBOARD TAB ── -->
+    <div class="tab-content active" id="tab-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon purple">📅</div>
+          <div class="stat-info"><div class="num" id="d-events">0</div><div class="lbl">Total Events</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon blue">📋</div>
+          <div class="stat-info"><div class="num" id="d-regs">0</div><div class="lbl">Registrations</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon orange">⏳</div>
+          <div class="stat-info"><div class="num" id="d-pending">0</div><div class="lbl">Pending Approvals</div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon green">✅</div>
+          <div class="stat-info"><div class="num" id="d-attended">0</div><div class="lbl">Attended</div></div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem;">
+        <!-- Recent Registrations -->
+        <div class="card">
+          <div class="card-header"><h3>Recent Registrations</h3></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Attendee</th><th>Event</th><th>Status</th></tr></thead>
+              <tbody id="recent-regs-body">
+                <tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Events Summary -->
+        <div class="card">
+          <div class="card-header"><h3>Events Overview</h3></div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Event</th><th>Category</th><th>Status</th></tr></thead>
+              <tbody id="events-summary-body">
+                <tr><td colspan="3" style="text-align:center;color:var(--text-muted);">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EVENTS TAB ── -->
+    <div class="tab-content" id="tab-events">
+      <div class="card">
+        <div class="card-header">
+          <h3>All Events</h3>
+          <button class="btn btn-primary btn-sm" onclick="switchTab('create-event', document.querySelector('[onclick*=create-event]'))">+ New Event</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th><th>Category</th><th>Date</th><th>Venue</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="events-table-body">
+              <tr><td colspan="6" style="text-align:center;"><div class="loader"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── REGISTRATIONS TAB ── -->
+    <div class="tab-content" id="tab-registrations">
+      <div class="card" style="margin-bottom:1.5rem;">
+        <div class="card-header"><h3>Filter by Event</h3></div>
+        <div class="card-body" style="display:flex;gap:1rem;align-items:center;">
+          <select id="event-filter-select" class="form-control" style="flex:1;" onchange="loadRegistrationsForEvent()">
+            <option value="">Select an event...</option>
+          </select>
+          <select id="status-filter-select" class="form-control" style="width:180px;" onchange="applyRegFilter()">
+            <option value="">All Statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h3>Registrations</h3>
+          <div id="reg-analytics" style="display:flex;gap:0.75rem;"></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Attendee</th><th>Email</th><th>Tier</th><th>Status</th><th>Attended</th><th>Registered</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="regs-table-body">
+              <tr><td colspan="7" style="text-align:center;color:var(--text-muted);">Select an event to view registrations</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CREATE EVENT TAB ── -->
+    <div class="tab-content" id="tab-create-event">
+      <div class="card" style="max-width:800px;">
+        <div class="card-header"><h3 id="event-form-title">Create New Event</h3></div>
+        <div class="card-body">
+          <input type="hidden" id="edit-event-id"/>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Event Title *</label>
+              <input type="text" id="f-title" class="form-control" placeholder="e.g. StratosConf 2026"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category *</label>
+              <select id="f-category" class="form-control">
+                <option value="Conference">Conference</option>
+                <option value="Workshop">Workshop</option>
+                <option value="Webinar">Webinar</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Description *</label>
+            <textarea id="f-description" class="form-control" rows="4" placeholder="Describe what attendees will learn or experience..."></textarea>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Venue *</label>
+              <input type="text" id="f-venue" class="form-control" placeholder="e.g. Chennai Trade Centre"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Address</label>
+              <input type="text" id="f-address" class="form-control" placeholder="Full address"/>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Start Date & Time *</label>
+              <input type="datetime-local" id="f-start" class="form-control"/>
+            </div>
+            <div class="form-group">
+              <label class="form-label">End Date & Time *</label>
+              <input type="datetime-local" id="f-end" class="form-control"/>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select id="f-status" class="form-control">
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tags (comma separated)</label>
+              <input type="text" id="f-tags" class="form-control" placeholder="e.g. AI, Tech, Networking"/>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="f-invite" style="width:16px;height:16px;accent-color:var(--primary);"/>
+              Invite-only event (registrations require admin approval)
+            </label>
+          </div>
+
+          <!-- Ticket Tiers -->
+          <div style="margin-top:1.5rem;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+              <label class="form-label" style="margin:0;">Ticket Tiers *</label>
+              <button class="btn btn-outline btn-sm" type="button" onclick="addTierRow()">+ Add Tier</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:0.75rem;margin-bottom:0.5rem;">
+              <small style="color:var(--text-muted);font-weight:600;">Tier Name</small>
+              <small style="color:var(--text-muted);font-weight:600;">Price (₹)</small>
+              <small style="color:var(--text-muted);font-weight:600;">Total Seats</small>
+              <small style="color:var(--text-muted);font-weight:600;">Perks</small>
+              <small></small>
+            </div>
+            <div id="tiers-container"></div>
+          </div>
+
+          <div style="display:flex;gap:1rem;margin-top:2rem;">
+            <button class="btn btn-primary btn-lg" onclick="submitEvent()">Save Event</button>
+            <button class="btn btn-outline" onclick="resetEventForm()">Reset Form</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CHECK-IN TAB ── -->
+    <div class="tab-content" id="tab-checkin">
+      <div class="card" style="max-width:600px;margin:0 auto;">
+        <div class="card-header"><h3>Attendee Check-in</h3></div>
+        <div class="card-body">
+          <p style="color:var(--text-muted);margin-bottom:1.5rem;">Enter the attendee's unique registration token to mark their attendance.</p>
+
+          <div class="form-group">
+            <label class="form-label">Select Event</label>
+            <select id="checkin-event-select" class="form-control">
+              <option value="">Select event...</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Registration Token</label>
+            <input type="text" id="checkin-token" class="form-control" placeholder="Paste the attendee's unique token here..."/>
+          </div>
+
+          <button class="btn btn-success btn-block btn-lg" onclick="processCheckin()">Mark as Attended ✓</button>
+
+          <div id="checkin-result" style="margin-top:1.5rem;"></div>
+        </div>
+      </div>
+
+      <!-- Recent Check-ins -->
+      <div class="card" style="max-width:600px;margin:1.5rem auto 0;">
+        <div class="card-header"><h3>Recent Check-ins</h3></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Attendee</th><th>Event</th><th>Checked in at</th></tr></thead>
+            <tbody id="checkin-log">
+              <tr><td colspan="3" style="text-align:center;color:var(--text-muted);">No check-ins yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Edit Event Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Quick Status Update</h3>
+      <button class="modal-close" onclick="closeModal('edit-modal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Event Status</label>
+      <select id="edit-status-select" class="form-control">
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-block" onclick="saveEventStatus()">Update Status</button>
+  </div>
+</div>
+
+<script src="../js/utils.js"></script>
+<script>
+let allAdminEvents = [];
+let allAdminRegs   = [];
+let editingEventId = null;
+let checkinLog     = [];
+
+// ── TAB SWITCHING ──
+function switchTab(tab, link) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  if (link) link.classList.add('active');
+  document.getElementById('page-title').textContent =
+    { dashboard: 'Dashboard', events: 'Events', registrations: 'Registrations', 'create-event': 'Create Event', checkin: 'Check-in' }[tab] || tab;
+}
+
+// ── INIT ──
+async function init() {
+  if (!requireAdmin()) return;
+  const user = getUser();
+  document.getElementById('admin-name').textContent = `Logged in as ${user.name}`;
+
+  await Promise.all([loadDashboard(), loadAdminEvents()]);
+  populateEventSelects();
+}
+
+// ── DASHBOARD ──
+async function loadDashboard() {
+  try {
+    const [events, regs] = await Promise.all([
+      apiFetch('/events/all'),
+      apiFetch('/registrations/admin/all')
+    ]);
+    allAdminEvents = events;
+    allAdminRegs   = regs;
+
+    document.getElementById('d-events').textContent   = events.length;
+    document.getElementById('d-regs').textContent     = regs.length;
+    document.getElementById('d-pending').textContent  = regs.filter(r => r.status === 'pending').length;
+    document.getElementById('d-attended').textContent = regs.filter(r => r.attended).length;
+
+    // Recent registrations table
+    document.getElementById('recent-regs-body').innerHTML = regs.slice(0, 8).map(r => `
+      <tr>
+        <td><strong>${r.user?.name || '—'}</strong></td>
+        <td style="color:var(--text-muted);font-size:0.83rem;">${r.event?.title?.substring(0,30) || '—'}${r.event?.title?.length > 30 ? '...' : ''}</td>
+        <td>${statusBadge(r.status)}</td>
+      </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">No registrations yet</td></tr>';
+
+    // Events summary table
+    document.getElementById('events-summary-body').innerHTML = events.slice(0, 8).map(e => `
+      <tr>
+        <td><strong>${e.title.substring(0,28)}${e.title.length>28?'...':''}</strong></td>
+        <td><span class="badge badge-purple">${e.category}</span></td>
+        <td>${statusBadge(e.status)}</td>
+      </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);">No events yet</td></tr>';
+
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+// ── ADMIN EVENTS ──
+async function loadAdminEvents() {
+  try {
+    allAdminEvents = await apiFetch('/events/all');
+    renderEventsTable();
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+function renderEventsTable() {
+  document.getElementById('events-table-body').innerHTML = allAdminEvents.map(e => `
+    <tr>
+      <td><strong>${e.title}</strong></td>
+      <td><span class="badge badge-purple">${e.category}</span></td>
+      <td>${formatDate(e.startDate)}</td>
+      <td style="color:var(--text-muted);font-size:0.83rem;">${e.venue}</td>
+      <td>${statusBadge(e.status)}</td>
+      <td>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-outline btn-sm" onclick="openEditModal('${e._id}','${e.status}')">Edit</button>
+          <button class="btn btn-primary btn-sm" onclick="loadRegistrationsById('${e._id}')">Registrations</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteEvent('${e._id}')">Delete</button>
+        </div>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted);">No events created yet</td></tr>';
+}
+
+function openEditModal(id, status) {
+  editingEventId = id;
+  document.getElementById('edit-status-select').value = status;
+  openModal('edit-modal');
+}
+
+async function saveEventStatus() {
+  try {
+    await apiFetch(`/events/${editingEventId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status: document.getElementById('edit-status-select').value })
+    });
+    showToast('Event status updated', 'success');
+    closeModal('edit-modal');
+    await loadAdminEvents();
+    await loadDashboard();
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+async function deleteEvent(id) {
+  if (!confirm('Are you sure you want to delete this event? This cannot be undone.')) return;
+  try {
+    await apiFetch(`/events/${id}`, { method: 'DELETE' });
+    showToast('Event deleted', 'success');
+    await loadAdminEvents();
+    await loadDashboard();
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+// ── REGISTRATIONS ──
+function populateEventSelects() {
+  const opts = allAdminEvents.map(e => `<option value="${e._id}">${e.title}</option>`).join('');
+  document.getElementById('event-filter-select').innerHTML   = '<option value="">Select an event...</option>' + opts;
+  document.getElementById('checkin-event-select').innerHTML  = '<option value="">Select event...</option>' + opts;
+}
+
+async function loadRegistrationsForEvent() {
+  const id = document.getElementById('event-filter-select').value;
+  if (!id) return;
+  await loadRegistrationsById(id);
+}
+
+async function loadRegistrationsById(eventId) {
+  // Switch to registrations tab
+  switchTab('registrations', document.querySelector('[onclick*=registrations]'));
+  document.getElementById('event-filter-select').value = eventId;
+
+  try {
+    allAdminRegs = await apiFetch(`/registrations/event/${eventId}`);
+    const analytics = await apiFetch(`/registrations/analytics/${eventId}`);
+
+    document.getElementById('reg-analytics').innerHTML = `
+      <span class="badge badge-info">Total: ${analytics.total}</span>
+      <span class="badge badge-success">Approved: ${analytics.approved}</span>
+      <span class="badge badge-warning">Pending: ${analytics.pending}</span>
+      <span class="badge badge-purple">Attended: ${analytics.attended}</span>`;
+
+    renderRegsTable(allAdminRegs);
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+function applyRegFilter() {
+  const status = document.getElementById('status-filter-select').value;
+  const filtered = status ? allAdminRegs.filter(r => r.status === status) : allAdminRegs;
+  renderRegsTable(filtered);
+}
+
+function renderRegsTable(regs) {
+  document.getElementById('regs-table-body').innerHTML = regs.map(r => `
+    <tr>
+      <td><strong>${r.user?.name || '—'}</strong></td>
+      <td style="color:var(--text-muted);font-size:0.83rem;">${r.user?.email || '—'}</td>
+      <td><span class="badge badge-purple">${r.ticketTier}</span></td>
+      <td>${statusBadge(r.status)}</td>
+      <td>${r.attended ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-muted">No</span>'}</td>
+      <td style="color:var(--text-muted);font-size:0.83rem;">${formatDate(r.registeredAt)}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+          ${r.status === 'pending' ? `
+            <button class="btn btn-success btn-sm" onclick="approveReg('${r._id}')">Approve</button>
+            <button class="btn btn-danger btn-sm" onclick="rejectReg('${r._id}')">Reject</button>` : ''}
+          ${!r.attended && r.status === 'approved' ? `
+            <button class="btn btn-outline btn-sm" onclick="checkinReg('${r._id}')">Check-in</button>` : ''}
+        </div>
+      </td>
+    </tr>`).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);">No registrations found</td></tr>';
+}
+
+async function approveReg(id) {
+  try {
+    await apiFetch(`/registrations/${id}/approve`, { method: 'PUT' });
+    showToast('Registration approved', 'success');
+    await loadRegistrationsById(document.getElementById('event-filter-select').value);
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+async function rejectReg(id) {
+  try {
+    await apiFetch(`/registrations/${id}/reject`, { method: 'PUT' });
+    showToast('Registration rejected', 'warning');
+    await loadRegistrationsById(document.getElementById('event-filter-select').value);
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+async function checkinReg(id) {
+  try {
+    const reg = await apiFetch(`/registrations/${id}/checkin`, { method: 'PUT' });
+    showToast(`${reg.user?.name} checked in successfully!`, 'success');
+    const eventId = document.getElementById('event-filter-select').value;
+    if (eventId) await loadRegistrationsById(eventId);
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+// ── CHECK-IN BY TOKEN ──
+async function processCheckin() {
+  const token   = document.getElementById('checkin-token').value.trim();
+  const eventId = document.getElementById('checkin-event-select').value;
+  if (!token) { showToast('Please enter a token', 'error'); return; }
+
+  try {
+    // Find registration by token
+    const regs = await apiFetch(`/registrations/event/${eventId}`);
+    const reg = regs.find(r => r.uniqueToken === token);
+    if (!reg) {
+      document.getElementById('checkin-result').innerHTML = `
+        <div style="background:#fee2e2;padding:1rem;border-radius:var(--radius-sm);color:#991b1b;">
+          ❌ Token not found for this event
+        </div>`;
+      return;
+    }
+    if (reg.attended) {
+      document.getElementById('checkin-result').innerHTML = `
+        <div style="background:#fef3c7;padding:1rem;border-radius:var(--radius-sm);color:#92400e;">
+          ⚠️ ${reg.user?.name} has already been checked in
+        </div>`;
+      return;
+    }
+
+    await apiFetch(`/registrations/${reg._id}/checkin`, { method: 'PUT' });
+
+    document.getElementById('checkin-result').innerHTML = `
+      <div style="background:#d1fae5;padding:1rem;border-radius:var(--radius-sm);color:#065f46;">
+        ✅ <strong>${reg.user?.name}</strong> successfully checked in!<br/>
+        <small>Tier: ${reg.ticketTier} | ${new Date().toLocaleTimeString()}</small>
+      </div>`;
+
+    checkinLog.unshift({ name: reg.user?.name, event: reg.event?.title, time: new Date() });
+    renderCheckinLog();
+    document.getElementById('checkin-token').value = '';
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+function renderCheckinLog() {
+  document.getElementById('checkin-log').innerHTML = checkinLog.slice(0,10).map(c => `
+    <tr>
+      <td><strong>${c.name}</strong></td>
+      <td style="color:var(--text-muted);font-size:0.83rem;">${c.event || '—'}</td>
+      <td style="color:var(--text-muted);font-size:0.83rem;">${c.time.toLocaleTimeString()}</td>
+    </tr>`).join('');
+}
+
+// ── CREATE / EDIT EVENT ──
+let tierCount = 0;
+
+function addTierRow(name='', price=0, seats=100, perks='') {
+  tierCount++;
+  const id = tierCount;
+  const row = document.createElement('div');
+  row.className = 'tier-row';
+  row.id = `tier-row-${id}`;
+  row.innerHTML = `
+    <input type="text" placeholder="e.g. General" value="${name}" class="tier-name"/>
+    <input type="number" placeholder="0 = Free" value="${price}" min="0" class="tier-price"/>
+    <input type="number" placeholder="100" value="${seats}" min="1" class="tier-seats"/>
+    <input type="text" placeholder="e.g. Lunch included" value="${perks}" class="tier-perks"/>
+    <button class="btn btn-danger btn-sm" onclick="document.getElementById('tier-row-${id}').remove()">✕</button>`;
+  document.getElementById('tiers-container').appendChild(row);
+}
+
+function resetEventForm() {
+  ['f-title','f-description','f-venue','f-address','f-tags'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('f-category').value = 'Conference';
+  document.getElementById('f-status').value   = 'draft';
+  document.getElementById('f-invite').checked = false;
+  document.getElementById('f-start').value    = '';
+  document.getElementById('f-end').value      = '';
+  document.getElementById('edit-event-id').value = '';
+  document.getElementById('event-form-title').textContent = 'Create New Event';
+  document.getElementById('tiers-container').innerHTML = '';
+  tierCount = 0;
+  addTierRow('General', 0, 100, '');
+  addTierRow('VIP', 999, 50, 'Priority seating + Lunch');
+}
+
+async function submitEvent() {
+  const title       = document.getElementById('f-title').value.trim();
+  const description = document.getElementById('f-description').value.trim();
+  const category    = document.getElementById('f-category').value;
+  const venue       = document.getElementById('f-venue').value.trim();
+  const address     = document.getElementById('f-address').value.trim();
+  const startDate   = document.getElementById('f-start').value;
+  const endDate     = document.getElementById('f-end').value;
+  const status      = document.getElementById('f-status').value;
+  const isInviteOnly= document.getElementById('f-invite').checked;
+  const tagsRaw     = document.getElementById('f-tags').value;
+  const tags        = tagsRaw ? tagsRaw.split(',').map(t => t.trim()).filter(Boolean) : [];
+  const editId      = document.getElementById('edit-event-id').value;
+
+  if (!title || !description || !venue || !startDate || !endDate) {
+    showToast('Please fill in all required fields', 'error'); return;
+  }
+
+  // Collect tiers
+  const tierRows = document.querySelectorAll('.tier-row');
+  if (!tierRows.length) { showToast('Add at least one ticket tier', 'error'); return; }
+
+  const ticketTiers = Array.from(tierRows).map(row => {
+    const seats = parseInt(row.querySelector('.tier-seats').value) || 100;
+    return {
+      name:           row.querySelector('.tier-name').value.trim() || 'General',
+      price:          parseFloat(row.querySelector('.tier-price').value) || 0,
+      totalSeats:     seats,
+      availableSeats: seats,
+      perks:          row.querySelector('.tier-perks').value.trim()
+    };
+  });
+
+  const payload = { title, description, category, venue, address, startDate, endDate, status, isInviteOnly, tags, ticketTiers };
+
+  try {
+    if (editId) {
+      await apiFetch(`/events/${editId}`, { method: 'PUT', body: JSON.stringify(payload) });
+      showToast('Event updated successfully!', 'success');
+    } else {
+      await apiFetch('/events', { method: 'POST', body: JSON.stringify(payload) });
+      showToast('Event created successfully!', 'success');
+    }
+    resetEventForm();
+    await loadAdminEvents();
+    await loadDashboard();
+    populateEventSelects();
+    switchTab('events', document.querySelector('[onclick*="events,"]'));
+  } catch(err) { showToast(err.message, 'error'); }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  init();
+  resetEventForm();
+});
+</script>
+</body>
+</html>
