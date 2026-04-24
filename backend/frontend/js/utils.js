@@ -1,5 +1,5 @@
 // StratosEvent — Shared Utilities
-const API = 'http://localhost:5000/api';
+const API = '/api';
 
 // ── AUTH HELPERS ──
 function getToken() { return localStorage.getItem('stratoToken'); }
